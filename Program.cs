@@ -3,25 +3,21 @@ using System.IO;
 
 class Program
 {
+    public const string _trainingDirectoryName = "training";
+    public const string _trainingConfigName = "training.cfg";
+    public const string _exampleTrainingConfigName = "example.training.cfg";
+
+    private static readonly DirectoryInfo _libraryRootDirectoryPath = new DirectoryInfo(Directory.GetCurrentDirectory());
+    private static readonly DirectoryInfo _trainingDirectoryPath = new DirectoryInfo(Path.Combine(Directory.GetCurrentDirectory(), _trainingDirectoryName));
+    private static readonly DirectoryInfo _counterStrikeDirectoryPath = new DirectoryInfo(Directory.GetCurrentDirectory()).Parent 
+        ?? throw new Exception("counter strike directory not found");
+    
     static void Main()
     {
         try
         {
-            string libraryPath = Directory.GetCurrentDirectory().TrimEnd(Path.DirectorySeparatorChar);
-            string libraryRootName = new DirectoryInfo(libraryPath).Name;
-            string counterStrikePath = new DirectoryInfo(libraryPath).Parent?.FullName ?? throw new Exception("counter strike directory not found");
-            string counterStrikeDirectoryName = (new DirectoryInfo(libraryPath).Parent?.Name) ?? throw new Exception("counter strike directory not found");
-            string from = Path.Combine(libraryPath, "training", "example.training.cfg");
-            string to = Path.Combine(counterStrikePath, "training.cfg");
-            if (File.Exists(to))
-            {
-                throw new Exception($"File training.cfg is exists in {to}. Replace the name or remove them");
-            }
-            File.Copy(from, to, true);
-            string txt = File.ReadAllText(to);
-            txt = txt.Replace("exec training/main.cfg;", $"exec {libraryRootName}/training/main.cfg;");
-            txt = txt.Replace("exec_async training/helloworld.cfg;", $"exec_async {libraryRootName}/training/helloworld.cfg;");
-            File.WriteAllText(to, txt);
+            copyConfigToCounterStrikeScope();
+            copyTrainingDirToCounterStrikeScope();
         }
         catch (Exception ex)
         {
@@ -37,8 +33,58 @@ class Program
             System.IO.File.AppendAllText("crash.log",
                 $"[{DateTime.UtcNow:u}] {ex}{Environment.NewLine}");
 
-            Console.WriteLine("\nPress any key to exit …");
+            Console.WriteLine("\nSomething with wrong. Please add issue https://github.com/ESCA7A/training-cs2-nades …");
             Console.ReadKey();
+        }
+    }
+
+    private static void copyTrainingDirToCounterStrikeScope()
+    {
+        string inCounterStrikeTrainingDirectoryPath = Path.Combine(_counterStrikeDirectoryPath.FullName, _trainingDirectoryName);
+    
+        if (Directory.Exists(Path.Combine(inCounterStrikeTrainingDirectoryPath, _trainingDirectoryName)))
+        {
+            throw new Exception();
+        }
+
+        CopyDirectory(_trainingDirectoryPath.FullName, inCounterStrikeTrainingDirectoryPath, true);
+    }
+
+    private static void copyConfigToCounterStrikeScope()
+    {
+        string exampleTrainingCfgPath = Path.Combine(_trainingDirectoryPath.FullName, _exampleTrainingConfigName);
+        string trainingCfgPath = Path.Combine(_counterStrikeDirectoryPath.FullName, _trainingConfigName);
+        
+        if (File.Exists(trainingCfgPath))
+        {
+            throw new Exception($"File `training.cfg` is exists in {trainingCfgPath}. Replace the name or remove them");
+        }
+
+        File.Copy(exampleTrainingCfgPath, trainingCfgPath, true);
+    }
+
+    private static void CopyDirectory(string sourceDir, string destinationDir, bool recursive)
+    {
+        DirectoryInfo dir = new DirectoryInfo(sourceDir);
+
+        if (!dir.Exists)
+            throw new DirectoryNotFoundException($"Исходная папка не найдена: {dir.FullName}");
+
+        Directory.CreateDirectory(destinationDir);
+
+        foreach (FileInfo file in dir.GetFiles())
+        {
+            string targetFilePath = Path.Combine(destinationDir, file.Name);
+            file.CopyTo(targetFilePath, true);
+        }
+
+        if (recursive)
+        {
+            foreach (DirectoryInfo subDir in dir.GetDirectories())
+            {
+                string targetSubDir = Path.Combine(destinationDir, subDir.Name);
+                CopyDirectory(subDir.FullName, targetSubDir, true);
+            }
         }
     }
 }
